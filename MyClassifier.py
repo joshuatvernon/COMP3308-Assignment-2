@@ -190,11 +190,9 @@ def folds(training_dt):
 
 
 	with open('pima-folds.csv', 'w', newline='') as myfile:
-		wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
+		wr = csv.writer(myfile, quoting=csv.QUOTE_NONE)
 		i = 1
 		for fold in folds:
-			if i != 1:
-				wr.writerow([])
 			wr.writerow(["fold"+str(i)])
 			i = i + 1
 			for row in fold:
@@ -212,7 +210,7 @@ def main(argv):
 	training_dt = get_data(training_file)
 	input_dt = get_data(input_file)
 
-	folds(training_dt)
+	#folds(training_dt)
 
 	result = get_algo(algo,training_dt,input_dt)
 
