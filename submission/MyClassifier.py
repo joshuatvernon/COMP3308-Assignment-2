@@ -6,6 +6,8 @@ import sys
 import math
 import csv
 
+index_last_col = 5	# if testing CFS 5
+
 def read_data(fname):
 	lines = []
 	with open(fname) as f:
@@ -22,7 +24,7 @@ def get_data(fname):
 
 	for dt in data:
 		for i in range(0,len(dt)):
-			if i != 8:
+			if i != index_last_col:
 				dt[i] = float(dt[i])
 
 	return data
@@ -39,7 +41,7 @@ def KNN(k,training_dt,input_dt):
 
 	for train_dt in training_dt:
 		dis = Euclidean_d(train_dt,input_dt)
-		ls.append({"distance":dis,"class":train_dt[8]})
+		ls.append({"distance":dis,"class":train_dt[index_last_col]})
 
 	pound  = []
 	for elmt in ls:
@@ -68,15 +70,15 @@ def KNN(k,training_dt,input_dt):
 
 def get_mean(data):
 	sum = []
-	for i in range(0,8):
+	for i in range(0,index_last_col):
 		sum.append({"yes":0,"no":0})
 	num_of_yes = 0
 	for dt in data:
-		if dt[8] == "yes":
+		if dt[index_last_col] == "yes":
 			num_of_yes = num_of_yes + 1
 			for i in range(0,len(dt)-1):
 				sum[i]["yes"] = sum[i]["yes"] + dt[i]
-		elif dt[8] == "no":
+		elif dt[index_last_col] == "no":
 			for i in range(0,len(dt)-1):
 				sum[i]["no"] = sum[i]["no"] + dt[i]
 
@@ -92,12 +94,12 @@ def get_mean(data):
 
 def get_standard_deviation(training_dt,mean):
 	sum = []
-	for i in range(0,8):
+	for i in range(0,index_last_col):
 		sum.append({"yes":0,"no":0})
 	for dt in training_dt:
 		for i in range(0,len(dt)-1):
-			num = math.pow(dt[i] - mean[i][dt[8]],2)
-			sum[i][dt[8]] = sum[i][dt[8]] + num
+			num = math.pow(dt[i] - mean[i][dt[index_last_col]],2)
+			sum[i][dt[index_last_col]] = sum[i][dt[index_last_col]] + num
 
 	standard_deviation = []
 	for num in sum:
@@ -112,7 +114,7 @@ def probability_density_function(mean,standard_deviation,x):
 
 	return result
 
-def BN(training_dt,input_dt):
+def NB(training_dt,input_dt):
 	mean = get_mean(training_dt)
 	standard_deviation = get_standard_deviation(training_dt,mean)
 
@@ -144,7 +146,7 @@ def BN(training_dt,input_dt):
 def get_algo(algo,training_dt,input_dt):
 	result = []
 	if algo == "NB":
-		result = BN(training_dt,input_dt)
+		result = NB(training_dt,input_dt)
 	elif "NN" in algo:
 		k = int(algo.strip("NN"))
 		for in_dt in input_dt:
@@ -162,9 +164,9 @@ def folds(training_dt):
 	ls_yes = []
 	ls_no = []
 	for dt in training_dt:
-		if dt[8] == "yes":
+		if dt[index_last_col] == "yes":
 			ls_yes.append(dt)
-		elif dt[8] == "no":
+		elif dt[index_last_col] == "no":
 			ls_no.append(dt)
 
 	folds = []
@@ -198,8 +200,71 @@ def folds(training_dt):
 			for row in fold:
 				wr.writerow(row)
 
+def fold_cross_validation(fname,algo):
+
+	lines = []
+	with open(fname) as f:
+		lines = f.readlines()
+
+	training_dt_ls = []
+	test_dt_ls = []
+
+	for i in range(1,11):
+		training_data = []
+		test_data = []
+		test = False
+		for ln in lines:
+			ln = ln.strip()
+			if "fold" in ln:
+				ln = ln.strip("fold")
+				if int(ln) == i:
+					test = True
+				else:
+					test = False
+			else:
+				dt = []
+				dt = ln.split(",")
+				x = [float(i) for i in dt[0:-1]]
+				x.append(dt[-1])
+
+				if test:
+					test_data.append(x)
+				else:
+					training_data.append(x)
+
+		training_dt_ls.append(training_data)
+		test_dt_ls.append(test_data)
+
+	result_ls = []
+	for i in range(0,10):
+		result = get_algo(algo,training_dt_ls[i],[ls[0:-1] for ls in test_dt_ls[i]])
+		result_ls.append(compare_ls([ls[-1] for ls in test_dt_ls[i]],result))
+
+	sum = 0
+	for i in range(0,len(result_ls)):
+		sum = sum + result_ls[i]
+
+	print(float(sum/len(result_ls)))
+
+def compare_ls(ls1,ls2):
+	if len(ls1) != len(ls2):
+		print("something is wrong")
+
+	count = 0
+
+	for i in range(0,len(ls1)):
+		if ls1[i] == ls2[i]:
+			count = count + 1
+
+	result = float(count/len(ls1))
+
+	return result
+
+
 def main(argv):
-	if (len(argv) != 3):
+	if (len(argv) == 2):
+		return fold_cross_validation(argv[0],argv[1])
+	elif (len(argv) != 3):
 		return 1
 
 	training_file = argv[0]
